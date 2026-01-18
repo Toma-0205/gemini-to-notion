@@ -99,7 +99,7 @@ function generateSummaryPrompt(messages) {
 
   const today = new Date().toISOString().split('T')[0];
 
-  return `あなたは優秀な秘書であり、データアナリストです。提供された「会話履歴」を分析し、Notionデータベースに保存するための情報を以下のJSON形式で出力してください。
+  return `あなたは優秀な秘書であり、データアナリストです。提供された「会話履歴」を分析し、Notionデータベースに保存するための情報を以下のJSON形式で出力してください。内容はMECEを徹底し、取りこぼしがないようにしてください。
 
 【出力ルール】
 
@@ -179,20 +179,36 @@ function parseJsonFromResponse(text) {
 // トースト
 // =============================================================================
 
-function showToast(message, type = 'success') {
+function showToast(message, type = 'success', linkUrl = null) {
   const existingToast = document.querySelector('.gemini-to-notion-toast');
   if (existingToast) existingToast.remove();
   
   const toast = document.createElement('div');
   toast.className = `gemini-to-notion-toast ${type}`;
-  toast.textContent = message;
+  
+  const textSpan = document.createElement('span');
+  textSpan.textContent = message;
+  toast.appendChild(textSpan);
+  
+  if (linkUrl) {
+    const link = document.createElement('a');
+    link.href = linkUrl;
+    link.target = '_blank';
+    link.textContent = ' ↗ 開く';
+    link.style.color = '#fff';
+    link.style.textDecoration = 'underline';
+    link.style.marginLeft = '8px';
+    link.style.fontWeight = 'bold';
+    toast.appendChild(link);
+  }
+  
   document.body.appendChild(toast);
   
   requestAnimationFrame(() => toast.classList.add('show'));
   setTimeout(() => {
     toast.classList.remove('show');
     setTimeout(() => toast.remove(), 300);
-  }, 4000);
+  }, 5000);
 }
 
 // =============================================================================
@@ -353,7 +369,7 @@ async function handleSaveResponse(responseElement, button) {
       });
       
       if (result.success) {
-        showToast('Notionに保存しました ✓', 'success');
+        showToast('Notionに保存しました ✓', 'success', result.pageUrl);
         button.textContent = '✓ 保存済み';
         button.classList.add('saved');
       } else {
@@ -397,20 +413,21 @@ function insertButtonsToResponses() {
       // 2. 「Notionへ保存」ボタン
       const saveButton = document.createElement('button');
       saveButton.className = BUTTON_CLASS;
-      saveButton.textContent = '📓 Notionへ保存';
+      saveButton.textContent = 'Notionへ保存';
+      saveButton.style.marginLeft = '8px'; // 2番目になるのでマージン付与
       saveButton.addEventListener('click', () => handleSaveResponse(response, saveButton));
 
-      // 3. 「✨ まとめてNotion用にする」ボタン (ここに追加)
+      // 3. 「まとめを作成」ボタン (ここに追加)
       const summarizeButton = document.createElement('button');
       summarizeButton.className = BUTTON_CLASS;
-      summarizeButton.textContent = '✨ まとめて作成';
+      summarizeButton.textContent = 'まとめを作成';
       summarizeButton.title = 'ここまでの会話を要約するプロンプトを入力欄に貼り付けます';
-      summarizeButton.style.marginLeft = '8px';
       summarizeButton.style.background = 'linear-gradient(135deg, #7c3aed, #4f46e5)';
       summarizeButton.addEventListener('click', () => handleInjectPrompt(summarizeButton));
       
-      btnContainer.appendChild(saveButton);
+      // 順序を逆にする: まとめを作成 → Notionへ保存
       btnContainer.appendChild(summarizeButton);
+      btnContainer.appendChild(saveButton);
       
       // 挿入場所を決定
       const actionsArea = response.querySelector('.response-actions, .message-actions');
